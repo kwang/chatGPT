@@ -7,10 +7,13 @@ import {
   Typography, 
   Box,
   CircularProgress,
-  IconButton
+  IconButton,
+  Tabs,
+  Tab
 } from '@mui/material';
 import { Mic, MicOff, VolumeUp, VolumeOff } from '@mui/icons-material';
 import { v4 as uuidv4 } from 'uuid';
+import QuestionGenerator from './components/QuestionGenerator';
 import './App.css';
 
 function App() {
@@ -21,6 +24,7 @@ function App() {
   const [isListening, setIsListening] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [serverStatus, setServerStatus] = useState('checking');
+  const [activeTab, setActiveTab] = useState(0);
   const messagesEndRef = useRef(null);
   const recognitionRef = useRef(null);
   const speechRef = useRef(null);
@@ -155,21 +159,27 @@ function App() {
     scrollToBottom();
   }, [messages]);
 
+  const handleTabChange = (event, newValue) => {
+    setActiveTab(newValue);
+  };
+
   return (
     <Container maxWidth="md" sx={{ height: '100vh', py: 4 }}>
-      <Paper 
-        elevation={3} 
-        sx={{ 
-          height: '100%', 
-          display: 'flex', 
-          flexDirection: 'column',
-          p: 2
-        }}
-      >
+      <Paper elevation={3} sx={{ height: '100%', display: 'flex', flexDirection: 'column', p: 2 }}>
         <Typography variant="h4" component="h1" gutterBottom align="center">
-          AI Voice Interview Assistant
+          AI Interview Assistant
         </Typography>
-        
+
+        <Tabs
+          value={activeTab}
+          onChange={handleTabChange}
+          centered
+          sx={{ mb: 2 }}
+        >
+          <Tab label="Question Generator" />
+          <Tab label="Live Interview" />
+        </Tabs>
+
         {serverStatus === 'checking' && (
           <Box sx={{ textAlign: 'center', my: 2 }}>
             <CircularProgress size={24} />
@@ -185,82 +195,90 @@ function App() {
 
         {serverStatus === 'connected' && (
           <>
-            <Box 
-              sx={{ 
-                flex: 1, 
-                overflowY: 'auto', 
-                mb: 2,
-                p: 2,
-                backgroundColor: '#f5f5f5',
-                borderRadius: 1
-              }}
-            >
-              {messages.map((message, index) => (
-                <Box
-                  key={index}
-                  sx={{
-                    display: 'flex',
-                    justifyContent: message.role === 'user' ? 'flex-end' : 'flex-start',
-                    mb: 2
+            {activeTab === 0 ? (
+              // Question Generator Interface
+              <QuestionGenerator />
+            ) : (
+              // Interview Chat Interface
+              <>
+                <Box 
+                  sx={{ 
+                    flex: 1, 
+                    overflowY: 'auto', 
+                    mb: 2,
+                    p: 2,
+                    backgroundColor: '#f5f5f5',
+                    borderRadius: 1
                   }}
                 >
-                  <Paper
-                    elevation={1}
-                    sx={{
-                      p: 2,
-                      maxWidth: '70%',
-                      backgroundColor: message.role === 'user' ? '#e3f2fd' : '#fff'
-                    }}
-                  >
-                    <Typography>{message.content}</Typography>
-                  </Paper>
+                  {messages.map((message, index) => (
+                    <Box
+                      key={index}
+                      sx={{
+                        display: 'flex',
+                        justifyContent: message.role === 'user' ? 'flex-end' : 'flex-start',
+                        mb: 2
+                      }}
+                    >
+                      <Paper
+                        elevation={1}
+                        sx={{
+                          p: 2,
+                          maxWidth: '70%',
+                          backgroundColor: message.role === 'user' ? '#e3f2fd' : '#fff'
+                        }}
+                      >
+                        <Typography>{message.content}</Typography>
+                      </Paper>
+                    </Box>
+                  ))}
+                  {isLoading && (
+                    <Box sx={{ display: 'flex', justifyContent: 'center', my: 2 }}>
+                      <CircularProgress size={24} />
+                    </Box>
+                  )}
+                  <div ref={messagesEndRef} />
                 </Box>
-              ))}
-              {isLoading && (
-                <Box sx={{ display: 'flex', justifyContent: 'center', my: 2 }}>
-                  <CircularProgress size={24} />
-                </Box>
-              )}
-              <div ref={messagesEndRef} />
-            </Box>
 
-            <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
-              <IconButton 
-                onClick={toggleListening}
-                color={isListening ? 'error' : 'primary'}
-                sx={{ mr: 1 }}
-              >
-                {isListening ? <MicOff /> : <Mic />}
-              </IconButton>
-              
-              <IconButton 
-                onClick={toggleSpeaking}
-                color={isSpeaking ? 'primary' : 'default'}
-                sx={{ mr: 1 }}
-              >
-                {isSpeaking ? <VolumeUp /> : <VolumeOff />}
-              </IconButton>
-
-              <form onSubmit={handleSubmit} style={{ flex: 1 }}>
-                <Box sx={{ display: 'flex', gap: 1 }}>
-                  <TextField
-                    fullWidth
-                    variant="outlined"
-                    placeholder="Type your message..."
-                    value={input}
-                    onChange={(e) => setInput(e.target.value)}
-                    disabled={isLoading || isListening}
-                  />
-                  <Button 
-                    variant="contained" 
-                    type="submit"
-                    disabled={isLoading || (!input.trim() && !isListening)}
+                <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+                  <IconButton 
+                    onClick={toggleListening}
+                    color={isListening ? 'error' : 'primary'}
+                    sx={{ mr: 1 }}
                   >
-                    Send
-                  </Button>
+                    {isListening ? <MicOff /> : <Mic />}
+                  </IconButton>
+                  
+                  <IconButton 
+                    onClick={toggleSpeaking}
+                    color={isSpeaking ? 'primary' : 'default'}
+                    sx={{ mr: 1 }}
+                  >
+                    {isSpeaking ? <VolumeUp /> : <VolumeOff />}
+                  </IconButton>
+
+                  <form onSubmit={handleSubmit} style={{ flex: 1 }}>
+                    <Box sx={{ display: 'flex', gap: 1 }}>
+                      <TextField
+                        fullWidth
+                        variant="outlined"
+                        placeholder="Type your message..."
+                        value={input}
+                        onChange={(e) => setInput(e.target.value)}
+                        disabled={isLoading || isListening}
+                      />
+                      <Button 
+                        variant="contained" 
+                        type="submit"
+                        disabled={isLoading || (!input.trim() && !isListening)}
+                      >
+                        Send
+                      </Button>
+                    </Box>
+                  </form>
                 </Box>
-              </form>
-            </Box>
+              </>
+            )}
           </>
         )}
       </Paper>
