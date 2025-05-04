@@ -1,0 +1,14 @@
+{
+  "name": "chatgpt-interview-app",
+  "version": "1.0.0",
+  "description": "Real-time interview application with ChatGPT",
+  "scripts": {
+    "start": "concurrently \"npm run server\" \"npm run client\"",
+    "server": "cd server && PORT=3001 npm start",
+    "client": "cd client && BROWSER=none PORT=3002 react-scripts start",
+    "install-all": "npm install && cd client && npm install && cd ../server && npm install"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  }
+} 
