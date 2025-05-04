@@ -1,7 +1,8 @@
 const express = require('express');
 const cors = require('cors');
 const { OpenAI } = require('openai');
-require('dotenv').config();
+const path = require('path');
+require('dotenv').config({ path: path.join(__dirname, '../.env') });
 
 const app = express();
 app.use(cors());
@@ -9,6 +10,13 @@ app.use(express.json());
 
 // Store generated questions for each session
 const sessionQuestions = new Map();
+
+// Debug logging for environment variables
+console.log('Current working directory:', process.cwd());
+console.log('Environment variables loaded:', {
+  OPENAI_API_KEY: process.env.OPENAI_API_KEY ? 'Present' : 'Missing',
+  NODE_ENV: process.env.NODE_ENV
+});
 
 // Verify API key is present
 if (!process.env.OPENAI_API_KEY) {
@@ -58,6 +66,21 @@ const questionGeneratorPrompt = `You are an expert interviewer tasked with gener
 7. Include both open-ended and specific questions
 
 Format your response as a JSON array of strings, with each string being a question.`;
+
+const evaluationPrompt = `You are an expert interview coach evaluating a candidate's answer to an interview question. Provide a detailed evaluation with the following structure:
+
+1. Score the answer on a scale of 1-10
+2. List 2-3 key strengths of the answer
+3. List 2-3 areas for improvement
+4. Provide specific suggestions for improvement
+
+Format your response as a JSON object with the following structure:
+{
+  "score": number,
+  "strengths": string[],
+  "improvements": string[],
+  "suggestions": string
+}`;
 
 app.post('/api/chat', async (req, res) => {
   try {
@@ -141,6 +164,75 @@ app.post('/api/generate-questions', async (req, res) => {
     console.error('Error in generate-questions:', error);
     res.status(500).json({ 
       error: 'Failed to generate questions',
+      details: error.message 
+    });
+  }
+});
+
+app.post('/api/evaluate-answer', async (req, res) => {
+  try {
+    const { question, answer } = req.body;
+    
+    if (!question || !answer) {
+      return res.status(400).json({ error: 'Question and answer are required' });
+    }
+
+    console.log('Evaluating answer:', { question, answer });
+
+    const evaluationPrompt = `You are an expert interviewer evaluating a candidate's answer. 
+    Please evaluate the following interview question and answer:
+    
+    Question: ${question}
+    Answer: ${answer}
+    
+    Provide a detailed evaluation in the following format:
+    {
+      "score": <number between 1-10>,
+      "strengths": ["strength1", "strength2", "strength3"],
+      "improvements": ["improvement1", "improvement2", "improvement3"],
+      "suggestions": "Detailed suggestions for improvement"
+    }
+    
+    Focus on:
+    1. Clarity and structure of the answer
+    2. Technical accuracy and depth
+    3. Communication skills
+    4. Relevance to the question
+    5. Examples and evidence provided`;
+
+    const completion = await openai.chat.completions.create({
+      model: "gpt-4",
+      messages: [
+        { role: "system", content: "You are an expert interviewer providing detailed feedback on interview answers." },
+        { role: "user", content: evaluationPrompt }
+      ],
+      temperature: 0.7,
+      max_tokens: 1000
+    });
+
+    const evaluationText = completion.choices[0].message.content;
+    console.log('Raw evaluation response:', evaluationText);
+
+    let evaluation;
+    try {
+      evaluation = JSON.parse(evaluationText);
+    } catch (parseError) {
+      console.error('Error parsing evaluation:', parseError);
+      // Fallback to a structured response if JSON parsing fails
+      evaluation = {
+        score: 5,
+        strengths: ["Answer provided"],
+        improvements: ["Could not parse detailed evaluation"],
+        suggestions: "Please try again for a more detailed evaluation."
+      };
+    }
+
+    console.log('Sending evaluation response:', evaluation);
+    res.json({ evaluation });
+  } catch (error) {
+    console.error('Error in evaluate-answer:', error);
+    res.status(500).json({ 
+      error: 'Failed to evaluate answer',
       details: error.message 
     });
   }
